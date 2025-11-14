@@ -1,6 +1,13 @@
 @BookingApp.Api_HostAddress = http://localhost:5149
 
-GET {{BookingApp.Api_HostAddress}}/weatherforecast/
+###
+POST {{BookingApp.Api_HostAddress}}/api/Auth/register
+Content-Type: application/json
 Accept: application/json
 
-###
+{
+  "email": "test@example.com",
+  "password": "Test123!",
+  "fullName": "Test User",
+  "role": "Customer"
+}
