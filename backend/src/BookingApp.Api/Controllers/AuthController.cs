@@ -1,3 +1,5 @@
+using System.IdentityModel.Tokens.Jwt;
+using System.Security.Claims;
 using BookingApp.Api.Auth;
 using BookingApp.Application.Auth;
 using BookingApp.Infrastructure.Identity;
@@ -27,7 +29,7 @@ namespace BookingApp.Api.Controllers
         [HttpPost("register")]
         public async Task<IActionResult> Register([FromBody] RegisterRequest request)
         {
-            // TODO implement registration
+
 
             var existingUser = await _userManager.FindByEmailAsync(request.Email);
             if (existingUser is not null)
@@ -66,16 +68,40 @@ namespace BookingApp.Api.Controllers
         [HttpPost("login")]
         public async Task<IActionResult> Login(LoginRequest request)
         {
-            // TODO: implementacja
-            return Ok();
+            var user = await _userManager.FindByEmailAsync(request.Email);
+            if (user is null)
+            {
+                return Unauthorized("Invalid credentials.");
+            }
+
+            var passwordValid = await _userManager.CheckPasswordAsync(user, request.Password);
+            if (!passwordValid)
+            {
+                return Unauthorized("Invalid credentials.");
+            }
+
+            var roles = await _userManager.GetRolesAsync(user);
+            var token = _jwtTokenGenerator.GenerateToken(user.Id, user.Email!, user.FullName ?? string.Empty, roles, out var expiresAt);
+
+            return Ok(new AuthResponse(token, expiresAt));
         }
 
         [HttpGet("me")]
         [Authorize]
-        public async Task<IActionResult> Me()
+        public IActionResult Me()
         {
-            // TODO: zwróć info o aktualnym użytkowniku
-            return Ok();
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? User.FindFirstValue(JwtRegisteredClaimNames.Sub);
+            var email = User.FindFirstValue(ClaimTypes.Email);
+            var fullName = User.FindFirstValue("fullName");
+            return Ok(new
+            {
+                userId,
+                email,
+                fullName,
+                roles = User.Claims
+                    .Where(c => c.Type == ClaimTypes.Role)
+                    .Select(c => c.Value)
+            });
         }
     }
 }
