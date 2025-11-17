@@ -6,19 +6,29 @@ namespace BookingApp.Domain.Appointments;
 public sealed class Appointment
 {
     private Appointment() { }
+
     public Guid Id { get; private set; }
-    public Guid CustormeId { get; private set; }
+
+    public Guid CustomerId { get; private set; }
     public Guid EmployeeId { get; private set; }
     public Guid ServiceId { get; private set; }
 
     public DateTime StartTime { get; private set; }
     public DateTime EndTime { get; private set; }
+
     public AppointmentStatus Status { get; private set; }
 
-    private Appointment(Guid id, Guid custormeId, Guid employeeId, Guid serviceId, DateTime startTime, DateTime endTime, AppointmentStatus status)
+    private Appointment(
+        Guid id,
+        Guid customerId,
+        Guid employeeId,
+        Guid serviceId,
+        DateTime startTime,
+        DateTime endTime,
+        AppointmentStatus status)
     {
         Id = id;
-        CustormeId = custormeId;
+        CustomerId = customerId;
         EmployeeId = employeeId;
         ServiceId = serviceId;
         StartTime = startTime;
@@ -26,38 +36,44 @@ public sealed class Appointment
         Status = status;
     }
 
+    /// <summary>
+    /// Tworzy wizytę – na razie z jedną regułą:
+    /// - startTime nie może być w przeszłości (względem now).
+    /// </summary>
     public static Appointment Create(
-        Guid custormeId,
+        Guid customerId,
         Guid employeeId,
         Guid serviceId,
         DateTime startTime,
         DateTime endTime,
-        DateTime now
-    )
+        DateTime now)
     {
-        if (startTime < now) throw new InvalidOperationException("Start time must be in the future");
-        if (endTime <= startTime) throw new InvalidOperationException("End time must be after start time");
+        if (startTime < now)
+        {
+            throw new InvalidOperationException("Appointment cannot start in the past.");
+        }
+
+        if (endTime <= startTime)
+        {
+            throw new InvalidOperationException("End time must be after start time.");
+        }
 
         return new Appointment(
             Guid.NewGuid(),
-            custormeId,
+            customerId,
             employeeId,
             serviceId,
             startTime,
             endTime,
-            AppointmentStatus.Requested
-        );
+            AppointmentStatus.Requested);
     }
 
-    /// <summary>
-    /// Sprawdza, czy ta wizyta nachodzi na inną (dla tego samego pracownika).
-    /// Zakładamy przedział [StartTime, EndTime).
-    /// </summary>
     public bool Overlaps(Appointment other)
     {
-        // [Astart, Aend) i [Bstart, Bend) nakładają się, gdy:
-        // Astart < Bend && Bstart < Aend
-        return StartTime < other.EndTime &&
-               other.StartTime < EndTime;
+        if (other == null)
+        {
+            throw new ArgumentNullException(nameof(other));
+        }
+        return StartTime < other.EndTime && EndTime > other.StartTime;
     }
 }
